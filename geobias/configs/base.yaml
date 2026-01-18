@@ -1,0 +1,28 @@
+# @package _global_
+
+defaults:
+  - _self_
+
+data:
+  populations: names.json
+  examples: generated_examples.txt
+  stereotypes: stereotype_dimensions_dictionary.csv
+
+processing:
+  max_examples: 5
+  standardization: True
+  prefix: ""
+
+dimensions:
+  stereotypes: [sociability, morality, ability, agency, status, politics, religion]
+  polar_labels: {
+    sociability: [low sociability, high sociability],
+    morality: [low morality, high morality],
+    ability: [low ability, high ability],
+    agency: [low agency, high agency],
+    status: [low status, high status],
+    politics: [progressive, traditional],
+    religion: [non-religious, religious],
+  }
+
+output_dir: embeddings
