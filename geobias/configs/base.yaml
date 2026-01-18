@@ -26,3 +26,9 @@ dimensions:
   }
 
 output_dir: embeddings
+
+hydra:
+  run:
+    dir: geobias_outputs
+  sweep:
+    dir: .
