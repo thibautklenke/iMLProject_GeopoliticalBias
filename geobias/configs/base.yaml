@@ -11,24 +11,29 @@ data:
 processing:
   max_examples: 5
   standardization: True
-  prefix: ""
 
 dimensions:
-  stereotypes: [sociability, morality, ability, agency, status, politics, religion]
+  stereotypes: [Sociability, Morality, Ability, Agency, Status, Politics, Religion]
   polar_labels: {
-    sociability: [low sociability, high sociability],
-    morality: [low morality, high morality],
-    ability: [low ability, high ability],
-    agency: [low agency, high agency],
-    status: [low status, high status],
-    politics: [progressive, traditional],
-    religion: [non-religious, religious],
+    Sociability: [Low sociability, High sociability],
+    Morality: [Low morality, High morality],
+    Ability: [Low ability, High ability],
+    Agency: [Low agency, High agency],
+    Status: [Low status, High status],
+    Politics: [Progressive, Traditional],
+    Religion: [Non-religious, Religious],
   }
 
-output_dir: embeddings
+embeddings_output_dir: embeddings
+projections_output_dir: projections
+
+model:
+  name: google-bert/bert-base-uncased
+  primer: ""
+  primer_name: default
 
 hydra:
   run:
-    dir: geobias_outputs
+    dir: geobias_logs
   sweep:
     dir: .
