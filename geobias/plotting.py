@@ -11,7 +11,7 @@ import hydra
 from pathlib import Path
 
 
-def _get_style_config() -> dict[str, dict[str, str]]:
+def _get_style_config() -> dict[str, dict[int, str]]:
     """Returns default style configuration for plotting.
 
     Returns
@@ -20,8 +20,8 @@ def _get_style_config() -> dict[str, dict[str, str]]:
         Dictionary containing line and color styles.
     """
     return {
-        "line": {"group1": "solid", "group2": "dashdot"},
-        "color": {"group1": "green", "group2": "lightgreen"},
+        "line": {0: "solid", 1: "dashdot"},
+        "color": {0: "green", 1: "lightgreen"},
     }
 
 
@@ -110,7 +110,6 @@ def _extract_plot_data(
 def _plot_values(
     ax1: matplotlib.axes.Axes,
     plot_values: dict[str, list[float]],
-    groups: tuple[str, str],
 ) -> None:
     """Plots projection values for both groups.
 
@@ -124,11 +123,10 @@ def _plot_values(
         Tuple of (group1, group2) names.
     """
     styles = _get_style_config()
-    group1, group2 = groups
 
-    for group, values in plot_values.items():
-        color = styles["color"].get(group, "gray")
-        linestyle = styles["line"].get(group, "solid")
+    for idx, (group, values) in enumerate(plot_values.items()):
+        color = styles["color"].get(idx, "gray")
+        linestyle = styles["line"].get(idx, "solid")
         ax1.plot(
             values,
             np.arange(len(values)),
@@ -293,7 +291,7 @@ def main(cfg: DictConfig) -> None:
     )
 
     # Create plots
-    _plot_values(ax1, plot_values, groups)
+    _plot_values(ax1, plot_values)
     _setup_left_axis(ax1, plot_labels["low labels"], bold_labels)
     _setup_x_axis(ax1)
 
