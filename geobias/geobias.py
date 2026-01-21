@@ -9,6 +9,8 @@ import hydra
 if TYPE_CHECKING:
     from omegaconf import DictConfig
 
+from geobias.pipeline import GeobiasPipeline
+
 
 @hydra.main(config_path="configs", config_name="base.yaml", version_base=None)  # type: ignore
 def main(cfg: DictConfig) -> None:
@@ -19,8 +21,21 @@ def main(cfg: DictConfig) -> None:
     cfg : DictConfig
         Configuration object.
     """
-    data = cfg.data
-    print(data)
+    pipeline = GeobiasPipeline(
+        model_name=cfg.model.name,
+        populations_path=cfg.data.populations,
+        examples_path=cfg.data.examples,
+        stereotypes_path=cfg.data.stereotypes,
+        stereotype_dimensions=cfg.dimensions.stereotypes,
+        max_examples=cfg.processing.max_examples,
+        standardization=cfg.processing.standardization,
+        embeddings_dir=cfg.embeddings_output_dir,
+        projections_dir=cfg.projections_output_dir,
+        primer=cfg.model.primer,
+        primer_name=cfg.model.primer_name,
+    )
+
+    pipeline()
 
 
 if __name__ == "__main__":
