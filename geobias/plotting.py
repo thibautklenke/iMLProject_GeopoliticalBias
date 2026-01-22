@@ -234,7 +234,8 @@ def _save_figure(
         Path where the figure will be saved.
     """
     ax1.set_title(model_name, fontsize=9)
-    ax1.legend(bbox_to_anchor=(1, -0.45), ncol=2, fontsize=9)
+    bbox_val = -0.12 if n_dimensions > 2 else -0.25
+    ax1.legend(bbox_to_anchor=(1, bbox_val), ncol=2, fontsize=9)
     fig.set_figwidth(3.5)
     fig.set_figheight(n_dimensions * 0.5 + 1)
     plt.savefig(output_path, bbox_inches="tight")
