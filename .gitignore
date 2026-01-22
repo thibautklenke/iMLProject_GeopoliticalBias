@@ -171,3 +171,5 @@ cython_debug/
 
 geobias_logs/
 output/
+
+.DS_Store

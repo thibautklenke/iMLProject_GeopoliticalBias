@@ -21,3 +21,6 @@ Plotting:
 ```bash
 python -m geobias.plotting +model=qwen
 ```
+
+## References
+Schuster, C. M., Roman, M. A., Ghatiwala, S., & Groh, G. (2025, March). Profiling bias in llms: Stereotype dimensions in contextual word embeddings. In Proceedings of the Joint 25th Nordic Conference on Computational Linguistics and 11th Baltic Conference on Human Language Technologies (NoDaLiDa/Baltic-HLT 2025) (pp. 639-650).
