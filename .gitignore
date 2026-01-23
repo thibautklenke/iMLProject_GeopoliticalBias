@@ -173,3 +173,5 @@ geobias_logs/
 output/
 
 .DS_Store
+.direnv/
+
