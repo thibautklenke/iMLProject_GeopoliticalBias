@@ -33,6 +33,7 @@ def main(cfg: DictConfig) -> None:
         projections_dir=cfg.projections_output_dir,
         primer=cfg.model.primer,
         primer_name=cfg.model.primer_name,
+        hf_token=cfg.model.hf_token if "hf_token" in cfg.model else "",
     )
 
     pipeline()
