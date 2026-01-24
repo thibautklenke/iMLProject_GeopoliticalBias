@@ -1,0 +1,5 @@
+# @package _global_
+
+model:
+  name: meta-llama/Meta-Llama-3-8B-instruct
+  hf_token: ???  # Must be overwritten with a valid HuggingFace token.
