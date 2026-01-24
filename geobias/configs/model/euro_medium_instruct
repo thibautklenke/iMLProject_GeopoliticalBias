@@ -1,0 +1,4 @@
+# @package _global_
+
+model:
+  name: utter-project/EuroLLM-9B-Instruct

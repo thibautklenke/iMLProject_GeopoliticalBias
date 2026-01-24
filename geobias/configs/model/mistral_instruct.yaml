@@ -1,0 +1,4 @@
+# @package _global_
+
+model:
+  name: mistralai/Mistral-7B-Instruct-v0.3

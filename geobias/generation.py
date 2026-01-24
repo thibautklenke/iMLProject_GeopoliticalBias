@@ -41,8 +41,10 @@ def main(cfg: DictConfig) -> None:
         cfg.model.name, token=cfg.model.hf_token if "hf_token" in cfg.model else "", device_map="auto"
     )
     tokenizer = AutoTokenizer.from_pretrained(
-        cfg.model.name, token=cfg.model.hf_token if "hf_token" in cfg.model else ""
+        cfg.model.name, token=cfg.model.hf_token if "hf_token" in cfg.model else "", use_fast=True
     )
+
+    tokenizer.pad_token = tokenizer.eos_token
 
     messages = [
         {"role": "system", "content": cfg.prompt.system},
