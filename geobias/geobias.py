@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 from geobias.pipeline import GeobiasPipeline
 
 
-@hydra.main(config_path="configs", config_name="base.yaml", version_base=None)  # type: ignore
+@hydra.main(config_path="configs", config_name="pipeline.yaml", version_base=None)  # type: ignore
 def main(cfg: DictConfig) -> None:
     """Main entry point for Geobias.
 
