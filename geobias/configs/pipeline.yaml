@@ -34,6 +34,6 @@ model:
 
 hydra:
   run:
-    dir: geobias_logs
+    dir: geobias_logs/run/${now:%Y-%m-%d}/${now:%H-%M-%S}
   sweep:
-    dir: .
+    dir: geobias_logs/multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}
