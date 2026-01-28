@@ -1,4 +1,4 @@
 # @package _global_
 
 model:
-  name: qwen/qwen3-0.6B
+  name: Qwen/Qwen3-0.6B

@@ -256,7 +256,7 @@ def main(cfg: DictConfig) -> None:
         - dimensions.stereotypes: List of dimension names
         - dimensions.polar_labels: Dict mapping dimensions to label pairs
         - model.name: Model identifier (path format)
-        - model.primer_name: Primer configuration name
+        - primer.name: Primer configuration name
         - data.populations: Path to populations JSON file
         - projections_output_dir: Output directory for results
 
@@ -268,7 +268,7 @@ def main(cfg: DictConfig) -> None:
     # Load configuration and data
     dimensions: list[str] = cfg.dimensions.stereotypes
     polar_labels: dict[str, tuple[str, str]] = cfg.dimensions.polar_labels
-    model_name: str = f"{cfg.model.name.split('/')[-1]}-{cfg.model.primer_name}"
+    model_name: str = f"{cfg.model.name.split('/')[-1]}-{cfg.primer.name}"
 
     populations: dict[str, list[str]] = _load_populations(
         f"data/populations/{cfg.data.populations}"

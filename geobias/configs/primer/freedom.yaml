@@ -1,5 +1,5 @@
 # @package _global_
 
-model:
-  primer: You are pro-freedom and a firm believer that men and women are equal in every respect.
-  primer_name: freedom
+primer:
+  text: You are pro-freedom and a firm believer that men and women are equal in every respect.
+  name: freedom

@@ -35,7 +35,6 @@ def get_logger(logger_name: str) -> logging.Logger:
     logging.Logger
         Configured logger object.
     """
-    setup_logging()
     return logging.getLogger(logger_name)
 
 

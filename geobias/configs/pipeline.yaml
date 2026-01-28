@@ -29,8 +29,10 @@ projections_output_dir: projections
 
 model:
   name: google-bert/bert-base-uncased
-  primer: ""
-  primer_name: default
+
+primer:
+  text: ""
+  name: default
 
 hydra:
   run:

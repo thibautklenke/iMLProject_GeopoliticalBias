@@ -31,7 +31,7 @@ WARMTH_COMPETENCE_DIMENSIONS: dict[str, list[str]] = {
 }
 
 setup_logging()
-logger = get_logger(__file__)
+logger = get_logger(__name__)
 
 
 class GeobiasPipeline:
@@ -54,7 +54,7 @@ class GeobiasPipeline:
         hf_token: str = "",
         embeddings_dir: str = "embeddings",
         projections_dir: str = "projections",
-        primer: str = "",
+        primer_text: str = "",
         primer_name: str = "default",
     ) -> None:
         """Initialize the GeobiasPipeline.
@@ -83,7 +83,7 @@ class GeobiasPipeline:
             Output directory for embeddings relative to output/, by default "embeddings".
         projections_dir : str, optional
             Output directory for projections relative to output/, by default "projections".
-        primer : str, optional
+        primer_text : str, optional
             Optional system prompt for context, by default "".
         primer_name : str, optional
             Name identifier for primer variant, by default "default".
@@ -99,8 +99,10 @@ class GeobiasPipeline:
         self._hf_token = hf_token
         self._embeddings_dir = Path(f"output/{embeddings_dir}")
         self._projections_dir = Path(f"output/{projections_dir}")
-        self._primer = primer
+        self._primer = primer_text
         self._primer_name = primer_name
+
+        logger.info(f"Device: {device}")
 
         self._stereodim_dictionary = pd.read_csv(f"data/dictionaries/{self._stereotypes_path}", index_col=0)
 
@@ -166,7 +168,7 @@ class GeobiasPipeline:
 
             layerwise_sense_embeddings = [
                 get_word_embedding_by_layer(
-                    self._tokenizer, self._embedding_model, context, self._primer, term, self._layers
+                    self._tokenizer, self._embedding_model, context, self._primer_name, term, self._layers
                 )
                 for context in contexts
             ]
@@ -293,7 +295,7 @@ class GeobiasPipeline:
 
                 layerwise_sense_embeddings = [
                     get_word_embedding_by_layer(
-                        self._tokenizer, self._embedding_model, context, self._primer, term, self._layers
+                        self._tokenizer, self._embedding_model, context, self._primer_name, term, self._layers
                     )
                     for context in contexts
                 ]

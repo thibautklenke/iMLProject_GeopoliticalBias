@@ -10,16 +10,24 @@ source .venv/bin/activate
 uv sync
 ```
 
-Minimal Example:
+### Minimal Examples
+
+Generating Embeddings:
 
 ```bash
-python -m geobias.geobias +model=qwen
+python -m geobias.geobias +model=qwen +primer=conservative
 ```
 
-Plotting:
+Plotting Embeddings:
 
 ```bash
 python -m geobias.plotting +model=qwen
+```
+
+Generating Text:
+
+```bash
+python -m geobias.generation +model=qwen +prompt/system=your_country +prompt/user=ukraine
 ```
 
 ## References
