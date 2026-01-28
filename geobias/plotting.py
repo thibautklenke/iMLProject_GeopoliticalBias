@@ -269,7 +269,7 @@ def main(cfg: DictConfig) -> None:
     # Load configuration and data
     dimensions: list[str] = cfg.dimensions.stereotypes
     polar_labels: dict[str, tuple[str, str]] = cfg.dimensions.polar_labels
-    model_name: str = f"{cfg.model.name.split('/')[-1]}-{cfg.primer.name}"
+    model_name: str = f"{cfg.model.name.split('/')[-1]}-{cfg.primer.name}-{cfg.data.examples[0]}-{cfg.data.populations[0]}"
 
     populations: dict[str, list[str]] = _load_populations(
         f"data/populations/{cfg.data.populations}"

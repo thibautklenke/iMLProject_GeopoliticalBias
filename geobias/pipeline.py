@@ -122,7 +122,12 @@ class GeobiasPipeline:
             self._model_name, self._device, hf_token=self._hf_token
         )
         self._layers = list(range(get_number_of_hidden_states(self._tokenizer, self._embedding_model)))
-        self._model_name = f"{self._model_name.split('/')[-1]}-{self._primer_name}"
+        self._model_name = (
+            f"{self._model_name.split('/')[-1]}"
+            f"-{self._primer_name}"
+            f"-{self._examples_path[0]}"
+            f"-{self._populations_path[0]}"
+        )
 
         if not self._projections_dir.is_dir():
             self._projections_dir.mkdir(parents=True)
@@ -153,7 +158,10 @@ class GeobiasPipeline:
         contexts, averaging across contexts and organizing by dimension/direction.
         """
         for _, row in tqdm(
-            self._stereodim_dictionary.iterrows(), desc="Retrieving embeddings for stereotype dimensions."
+            self._stereodim_dictionary.iterrows(),
+            desc="Retrieving embeddings for stereotype dimensions",
+            position=0,
+            leave=True,
         ):
             term = row["term"]
             synset = row["synset"]
@@ -235,7 +243,7 @@ class GeobiasPipeline:
         warmth_competence_base_change_inv: dict[int, np.ndarray] = {}
         stereodim_base_change_inv: dict[int, np.ndarray] = {}
 
-        for layer in tqdm(self._layers, desc="Preparing layerwise base change matrices."):
+        for layer in tqdm(self._layers, desc="Preparing layerwise base change matrices", position=0, leave=True):
             stereodim_base_change: list[np.ndarray] = []
 
             for dim in self._stereotype_dimensions:
@@ -289,7 +297,7 @@ class GeobiasPipeline:
             Pseudo-inverse matrices for stereotype dimension projections by layer.
         """
         for group, terms in self._populations.items():
-            for term in tqdm(terms, desc=f"Projecting {group} to stereotype dimensions"):
+            for term in tqdm(terms, desc=f"Projecting {group} to stereotype dimensions", position=0, leave=True):
                 is_proper_noun = nltk.pos_tag([term])[0][1] == "NNP" or "names" in group.lower()
                 contexts = [fill_template(term, template, isNNP=is_proper_noun) for template in TEMPLATES]
 
