@@ -241,7 +241,7 @@ def _save_figure(
     plt.savefig(output_path, bbox_inches="tight")
 
 
-@hydra.main(config_path="configs", config_name="base.yaml", version_base=None)  # type: ignore
+@hydra.main(config_path="configs", config_name="pipeline.yaml", version_base=None)  # type: ignore
 def main(cfg: DictConfig) -> None:
     """Creates and saves bias profile plots from projection results.
 
@@ -256,9 +256,10 @@ def main(cfg: DictConfig) -> None:
         - dimensions.stereotypes: List of dimension names
         - dimensions.polar_labels: Dict mapping dimensions to label pairs
         - model.name: Model identifier (path format)
-        - primer.name: Primer configuration name
+        - primer: Configuration for a named primer
         - data.populations: Path to populations JSON file
         - projections_output_dir: Output directory for results
+        - embeddings_output_dir: Output directory for results embeddings
 
     Returns
     -------
