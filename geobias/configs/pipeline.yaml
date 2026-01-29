@@ -33,6 +33,7 @@ model:
 primer:
   text: ""
   name: default
+  id: default
 
 hydra:
   run:
