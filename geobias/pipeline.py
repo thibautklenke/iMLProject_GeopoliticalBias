@@ -99,7 +99,7 @@ class GeobiasPipeline:
         self._hf_token = hf_token
         self._embeddings_dir = Path(f"output/{embeddings_dir}")
         self._projections_dir = Path(f"output/{projections_dir}")
-        self._primer = primer_text
+        self._primer_text = primer_text
         self._primer_name = primer_name
 
         logger.info(f"Device: {device}")
@@ -176,7 +176,7 @@ class GeobiasPipeline:
 
             layerwise_sense_embeddings = [
                 get_word_embedding_by_layer(
-                    self._tokenizer, self._embedding_model, context, self._primer_name, term, self._layers
+                    self._tokenizer, self._embedding_model, context, self._primer_text, term, self._layers
                 )
                 for context in contexts
             ]
@@ -303,7 +303,7 @@ class GeobiasPipeline:
 
                 layerwise_sense_embeddings = [
                     get_word_embedding_by_layer(
-                        self._tokenizer, self._embedding_model, context, self._primer_name, term, self._layers
+                        self._tokenizer, self._embedding_model, context, self._primer_text, term, self._layers
                     )
                     for context in contexts
                 ]

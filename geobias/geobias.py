@@ -32,7 +32,7 @@ def main(cfg: DictConfig) -> None:
         embeddings_dir=cfg.embeddings_output_dir,
         projections_dir=cfg.projections_output_dir,
         primer_text=cfg.primer.text,
-        primer_name=cfg.primer.name,
+        primer_name=cfg.primer.id,
         hf_token=cfg.model.hf_token if "hf_token" in cfg.model else "",
     )
 
