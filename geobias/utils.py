@@ -166,7 +166,15 @@ def get_word_embedding_by_layer(
         Stacked embeddings (num_layers, embedding_dim), with subword embeddings averaged.
     """
     if primer:
-        message = f"[SYSTEM]\n{primer}\n\n[CONTEXT]\n{context}"
+        message = f"""
+            <system_instructions>
+            {primer}
+            </system_instructions>
+
+            <context>
+            {context}
+            </context>
+        """
         encoded_context = tokenizer.encode_plus(message, return_tensors="pt", truncation=True).to(
             embedding_model.device
         )
