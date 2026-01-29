@@ -1,0 +1,4 @@
+# @package _global_
+
+model:
+  name: swiss-ai/Apertus-8B-Instruct-2509
