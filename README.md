@@ -10,6 +10,14 @@ source .venv/bin/activate
 uv sync
 ```
 
+Alernatively, run
+
+```bash
+make env
+source .venv/bin/activate
+make install
+```
+
 ### Minimal Examples
 
 Generating Embeddings:
