@@ -87,7 +87,7 @@ def get_number_of_hidden_states(tokenizer: PreTrainedTokenizer, embedding_model:
         Number of hidden layers.
     """
     encoded = tokenizer.encode_plus("test", return_tensors="pt").to(embedding_model.device)
-    with torch.no_grad():
+    with torch.inference_mode():
         hidden_states = embedding_model(**encoded).hidden_states
     return len(hidden_states)
 
@@ -186,7 +186,7 @@ def get_word_embedding_by_layer(
     word_idx = get_word_idx(tokenizer, encoded_context, word)
     embedding_model.eval()
 
-    with torch.no_grad():
+    with torch.inference_mode():
         hidden_states = embedding_model(**encoded_context).hidden_states
 
     embeddings_by_layer = [hidden_states[layer][0][word_idx].mean(dim=0).to("cpu") for layer in layers]
