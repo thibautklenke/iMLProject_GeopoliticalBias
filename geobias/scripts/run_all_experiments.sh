@@ -17,7 +17,7 @@ for model in "${MODELS[@]}"; do
 
     for primer in "${PRIMER[@]}"; do
 
-        python -m geobias.geobias $model $primer
+        python -m geobias.geobias $model $primer -m
 
     done
 
