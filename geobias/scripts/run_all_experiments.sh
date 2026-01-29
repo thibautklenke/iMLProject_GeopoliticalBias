@@ -1,0 +1,24 @@
+#!/bin/bash
+
+MODELS=(
+    "+model=apertus"
+    "+model=llama_medium_instruct"
+    "+model=qwen_medium"
+)
+
+PRIMER=(
+    "" # Default
+    "+primer/conservative=glob(primer_*)"
+    "+primer/democratic=glob(primer_*)"
+    "+primer/liberal=glob(primer_*)"
+)
+
+for model in "${MODELS[@]}"; do
+
+    for primer in "${PRIMER[@]}"; do
+
+        python -m geobias.geobias $model $primer
+
+    done
+
+done
