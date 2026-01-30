@@ -23,7 +23,7 @@ make install
 Generating Embeddings:
 
 ```bash
-python -m geobias.geobias +model=qwen +primer=conservative
+python -m geobias.geobias +model=qwen +primer/conservative=primer_1
 ```
 
 Plotting Embeddings:
