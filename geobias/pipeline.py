@@ -20,6 +20,7 @@ from geobias.utils import (
     get_logger,
     get_number_of_hidden_states,
     get_word_embedding_by_layer,
+    get_word_embeddings_by_layer_batched,
     load_model_for_embedding_retrieval,
     setup_logging,
     standardize,
@@ -194,6 +195,50 @@ class GeobiasPipeline:
                 layer_dict["sense_embeddings"].append(sense_embedding)
                 layer_dict["sense_embedding_labels"].append(label)
 
+    def compute_embeddings_batched(self) -> None:
+        """Compute and store embeddings for all stereotype dimension terms using batched processing.
+
+        This is a batched version of compute_embeddings that processes all contexts
+        for each term in a single forward pass, which is much faster on GPU.
+
+        Retrieves embeddings for each term-synset pair across all layers and
+        contexts, averaging across contexts and organizing by dimension/direction.
+        Produces identical results to compute_embeddings but with better GPU utilization.
+        """
+        for _, row in tqdm(
+            self._stereodim_dictionary.iterrows(),
+            desc="Retrieving embeddings for stereotype dimensions (batched)",
+            position=0,
+            leave=True,
+        ):
+            term = row["term"]
+            synset = row["synset"]
+            dimension = row["dimension"]
+            direction = row["dir"]
+
+            contexts = self._context_examples[f"{term} - {synset}"]
+
+            if len(contexts) == 0:
+                logger.info(f"No examples for term '{term}'.")
+                continue
+
+            # Use batched function to process all contexts at once
+            layerwise_sense_embeddings = get_word_embeddings_by_layer_batched(
+                self._tokenizer, self._embedding_model, contexts, self._primer_text, term, self._layers
+            )
+
+            pole_key = f"{dimension}-{direction}"
+            label = f"{term} - {synset} - {pole_key}"
+
+            for layer, layer_dict in self._embedding_dict.items():
+                sense_embedding = layerwise_sense_embeddings[layer]
+
+                if pole_key not in layer_dict["pole_embedding_dict"]:
+                    layer_dict["pole_embedding_dict"][pole_key] = []
+                layer_dict["pole_embedding_dict"][pole_key].append(sense_embedding)
+                layer_dict["sense_embeddings"].append(sense_embedding)
+                layer_dict["sense_embedding_labels"].append(label)
+
     def save_embeddings(self) -> None:
         """Save computed embeddings to disk as numpy files and label text files.
 
@@ -320,6 +365,52 @@ class GeobiasPipeline:
                     ).numpy()
                     self._result_dict[f"{self._model_name}-L{layer}"][term] = np.concatenate((warmth_comp, stereodim))
 
+    def project_batched(
+        self, warmth_competence_base_change_inv: dict[int, np.ndarray], stereodim_base_change_inv: dict[int, np.ndarray]
+    ) -> None:
+        """Project population terms into stereotype dimension spaces using batched processing.
+
+        This is a batched version of project that processes all templates for each
+        term in a single forward pass, which is much faster on GPU.
+
+        Parameters
+        ----------
+        warmth_competence_base_change_inv : dict[int, np.ndarray]
+            Pseudo-inverse matrices for warmth/competence projections by layer.
+        stereodim_base_change_inv : dict[int, np.ndarray]
+            Pseudo-inverse matrices for stereotype dimension projections by layer.
+
+        Produces identical results to project but with better GPU utilization.
+        """
+        for group, terms in self._populations.items():
+            for term in tqdm(
+                terms, desc=f"Projecting {group} to stereotype dimensions (batched)", position=0, leave=True
+            ):
+                is_proper_noun = nltk.pos_tag([term])[0][1] == "NNP" or "names" in group.lower()
+                contexts = [fill_template(term, template, isNNP=is_proper_noun) for template in TEMPLATES]
+
+                # Use batched function to process all templates at once
+                layerwise_sense_embeddings = get_word_embeddings_by_layer_batched(
+                    self._tokenizer, self._embedding_model, contexts, self._primer_text, term, self._layers
+                )
+
+                for layer in self._layers:
+                    sense_embedding = layerwise_sense_embeddings[layer].double()
+
+                    # Keep computations on GPU, convert to numpy only at the end
+                    warmth_comp_tensor = torch.matmul(
+                        torch.from_numpy(warmth_competence_base_change_inv[layer]).double().to(sense_embedding.device),
+                        sense_embedding,
+                    )
+                    stereodim_tensor = torch.matmul(
+                        torch.from_numpy(stereodim_base_change_inv[layer]).double().to(sense_embedding.device),
+                        sense_embedding,
+                    )
+                    # Convert to numpy once, concatenate
+                    warmth_comp = warmth_comp_tensor.cpu().numpy()
+                    stereodim = stereodim_tensor.cpu().numpy()
+                    self._result_dict[f"{self._model_name}-L{layer}"][term] = np.concatenate((warmth_comp, stereodim))
+
     def gather_results(self) -> None:
         """Aggregate layer-wise projections, compute statistics, and save results.
 
@@ -373,4 +464,16 @@ class GeobiasPipeline:
         self.save_embeddings()
         warmth_comp_inv, stereodim_inv = self.compute_base_change()
         self.project(warmth_comp_inv, stereodim_inv)
+        self.gather_results()
+
+    def run_batched(self) -> None:
+        """Execute the complete pipeline using batched processing for faster GPU utilization.
+
+        This method uses batched versions of compute_embeddings and project,
+        which process multiple contexts in a single forward pass.
+        """
+        self.compute_embeddings_batched()
+        self.save_embeddings()
+        warmth_comp_inv, stereodim_inv = self.compute_base_change()
+        self.project_batched(warmth_comp_inv, stereodim_inv)
         self.gather_results()

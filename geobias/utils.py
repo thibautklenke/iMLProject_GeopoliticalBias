@@ -59,6 +59,17 @@ def load_model_for_embedding_retrieval(
     """
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True, token=hf_token)
 
+    # Set padding token if not already set (needed for batched processing)
+    # Use eos_token or unk_token as pad_token to avoid needing to resize model embeddings
+    if tokenizer.pad_token is None:
+        if tokenizer.eos_token is not None:
+            tokenizer.pad_token = tokenizer.eos_token
+        elif tokenizer.unk_token is not None:
+            tokenizer.pad_token = tokenizer.unk_token
+        else:
+            # Last resort: use the last token in vocab (should exist)
+            tokenizer.pad_token = tokenizer.convert_ids_to_tokens(len(tokenizer) - 1)
+
     try:
         embedding_model = AutoModel.from_pretrained(
             model_name, output_hidden_states=True, device_map="auto", token=hf_token
@@ -192,6 +203,140 @@ def get_word_embedding_by_layer(
     embeddings_by_layer = [hidden_states[layer][0][word_idx].mean(dim=0).to("cpu") for layer in layers]
 
     return torch.stack(embeddings_by_layer)
+
+
+def get_word_embeddings_by_layer_batched(
+    tokenizer: PreTrainedTokenizer,
+    embedding_model: PreTrainedModel,
+    contexts: list[str],
+    primer: str,
+    word: str,
+    layers: list[int],
+) -> torch.Tensor:
+    """Extract word embeddings across specified layers for multiple contexts in a single batch.
+
+    This is a batched version of get_word_embedding_by_layer that processes multiple
+    contexts for the same word in a single forward pass, which is much faster on GPU.
+
+    Parameters
+    ----------
+    tokenizer : PreTrainedTokenizer
+        Tokenizer for encoding context.
+    embedding_model : PreTrainedModel
+        Model to extract embeddings from.
+    contexts : list[str]
+        List of context sentences, all containing the same word.
+    primer : str
+        Optional system prompt to prepend to each context.
+    word : str
+        Word to extract embeddings for (must appear in all contexts).
+    layers : list[int]
+        Indices of layers to extract embeddings from.
+
+    Returns
+    -------
+    torch.Tensor
+        Stacked embeddings (num_layers, embedding_dim), averaged across contexts.
+        Same shape and values as calling get_word_embedding_by_layer on each context
+        and averaging the results.
+
+    Raises
+    ------
+    ValueError
+        If word is not found in any context or contexts list is empty.
+    """
+    if len(contexts) == 0:
+        raise ValueError("Contexts list cannot be empty")
+
+    # Prepare messages with primer if provided
+    if primer:
+        messages = [
+            f"""
+            <system_instructions>
+            {primer}
+            </system_instructions>
+
+            <context>
+            {context}
+            </context>
+        """
+            for context in contexts
+        ]
+    else:
+        messages = contexts
+
+    # Ensure padding token is set (safety check)
+    if tokenizer.pad_token is None:
+        if tokenizer.eos_token is not None:
+            tokenizer.pad_token = tokenizer.eos_token
+        elif tokenizer.unk_token is not None:
+            tokenizer.pad_token = tokenizer.unk_token
+        else:
+            # Last resort: use the last token in vocab
+            tokenizer.pad_token = tokenizer.convert_ids_to_tokens(len(tokenizer) - 1)
+
+    # Encode all contexts in a batch with padding
+    encoded_batch = tokenizer(
+        messages,
+        return_tensors="pt",
+        padding=True,
+        truncation=True,
+        return_attention_mask=True,
+    ).to(embedding_model.device)
+
+    # Find word indices for each context in the batch
+    # We process each context separately to find word positions, using the same
+    # encoding settings as the batch to ensure positions match
+    word_indices_per_context: list[list[int]] = []
+    for _i, context in enumerate(contexts):
+        # Create a single-item encoding with the same settings as batch encoding
+        if primer:
+            single_message = f"""
+            <system_instructions>
+            {primer}
+            </system_instructions>
+
+            <context>
+            {context}
+            </context>
+        """
+        else:
+            single_message = context
+
+        # Use encode_plus with same settings as batch to ensure tokenization matches
+        single_encoded = tokenizer.encode_plus(single_message, return_tensors="pt", truncation=True, padding=False)
+        word_idx = get_word_idx(tokenizer, single_encoded, word)
+        word_indices_per_context.append(word_idx)
+
+    embedding_model.eval()
+
+    # Forward pass on the entire batch
+    with torch.inference_mode():
+        hidden_states = embedding_model(**encoded_batch).hidden_states
+
+    # Extract embeddings for each context and average
+    batch_size = len(contexts)
+    embeddings_by_layer_per_context = []
+
+    for layer in layers:
+        layer_embeddings = []
+        for batch_idx in range(batch_size):
+            # Get word indices for this context
+            word_idx = word_indices_per_context[batch_idx]
+            # Extract embeddings for this word in this context
+            # hidden_states[layer] shape: (batch_size, seq_len, hidden_dim)
+            word_embeddings = hidden_states[layer][batch_idx][word_idx]
+            # Average subword tokens if word was split
+            word_embedding = word_embeddings.mean(dim=0)
+            layer_embeddings.append(word_embedding)
+
+        # Stack and average across contexts (keep on GPU for now)
+        layer_embeddings_tensor = torch.stack(layer_embeddings)
+        avg_embedding = layer_embeddings_tensor.mean(dim=0)
+        embeddings_by_layer_per_context.append(avg_embedding)
+
+    # Stack all layers, then move to CPU once
+    return torch.stack(embeddings_by_layer_per_context).to("cpu")
 
 
 def fill_template(gendered_term: str, template: str, isNNP: bool = False) -> str:  # noqa: FBT001, FBT002, N803

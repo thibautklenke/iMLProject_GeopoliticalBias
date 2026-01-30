@@ -36,6 +36,7 @@ def main(cfg: DictConfig) -> None:
         hf_token=cfg.model.hf_token if "hf_token" in cfg.model else "",
     )
 
+    # to use the batched version: pipeline.run_batched()
     pipeline()
 
 
