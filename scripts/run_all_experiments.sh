@@ -2,7 +2,7 @@
 
 MODELS=(
     "+model=apertus"
-    "+model=llama_medium_instruct"
+    "+model=llama_medium"
     "+model=qwen_medium"
 )
 
