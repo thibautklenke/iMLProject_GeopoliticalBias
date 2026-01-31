@@ -10,6 +10,7 @@ import hydra
 import matplotlib.pyplot as plt
 import nltk
 import numpy as np
+import seaborn as sns
 import torch
 from scipy import linalg
 from sklearn.manifold import TSNE
@@ -114,9 +115,9 @@ class TSNEPipeline:
         """Doc."""
         # TSNE
         if metric == "euclidean":
-            tsne = TSNE(n_components = self._dim, metric="euclidean")
+            tsne = TSNE(n_components = self._dim, metric="euclidean", random_state=0)
         elif metric == "stereodim":
-            tsne = TSNE(n_components = self._dim, metric=self.stereodim_metric)
+            tsne = TSNE(n_components = self._dim, metric=self.stereodim_metric, random_state=0)
         else:
             raise ValueError("Wrong metric")
 
@@ -141,7 +142,7 @@ class TSNEPipeline:
         for idx, (metric, result_emb) in enumerate(self._result.items()):
             ax[idx].set_title(metric)
             for group_emb in result_emb:
-                ax[idx].scatter(group_emb[:, 0], group_emb[:, 1])
+                sns.scatterplot(x=group_emb[:, 0], y=group_emb[:, 1], ax=ax[idx])
 
         fig.savefig(f"figures/tsne/{self._model_name}.pdf")
 
