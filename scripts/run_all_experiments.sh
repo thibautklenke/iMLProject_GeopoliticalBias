@@ -7,13 +7,14 @@ MODELS=(
 )
 
 PRIMER=(
-    "" # Default
     "+primer/conservative=glob(primer_*)"
     "+primer/democratic=glob(primer_*)"
     "+primer/liberal=glob(primer_*)"
 )
 
 for model in "${MODELS[@]}"; do
+
+    python -m geobias.geobias $model
 
     for primer in "${PRIMER[@]}"; do
 
