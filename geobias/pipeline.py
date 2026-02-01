@@ -123,6 +123,11 @@ class GeobiasPipeline:
             self._model_name, self._device, hf_token=self._hf_token
         )
         self._layers = list(range(get_number_of_hidden_states(self._tokenizer, self._embedding_model)))
+        self._model_name_no_primer = (
+            f"{self._model_name.split('/')[-1]}"
+            f"-{self._examples_path[0]}"
+            f"-{self._populations_path[0]}"
+        )
         self._model_name = (
             f"{self._model_name.split('/')[-1]}"
             f"-{self._primer_name}"
@@ -135,9 +140,7 @@ class GeobiasPipeline:
 
         if not self._embeddings_dir.is_dir():
             self._embeddings_dir.mkdir(parents=True)
-        for layer in self._layers:
-            if not (self._embeddings_dir / f"{self._model_name}-L{layer}").is_dir():
-                (self._embeddings_dir / f"{self._model_name}-L{layer}").mkdir()
+
         self._embedding_dict: dict[int, dict[str, Any]] = {
             layer: {"sense_embeddings": [], "sense_embedding_labels": [], "pole_embedding_dict": {}}
             for layer in self._layers
@@ -247,7 +250,7 @@ class GeobiasPipeline:
         for each layer.
         """
         for layer, layer_dict in self._embedding_dict.items():
-            layer_dir = self._embeddings_dir / f"{self._model_name}-L{layer}"
+            layer_dir = self._embeddings_dir / f"{self._model_name_no_primer}-L{layer}"
 
             for pole, embeddings in layer_dict["pole_embedding_dict"].items():
                 embeddings_array = np.vstack(embeddings)
@@ -293,16 +296,16 @@ class GeobiasPipeline:
             stereodim_base_change: list[np.ndarray] = []
 
             for dim in self._stereotype_dimensions:
-                low_embeddings = np.load(self._embeddings_dir / f"{self._model_name}-L{layer}/{dim}-low_embeddings.npy")
+                low_embeddings = np.load(self._embeddings_dir / f"{self._model_name_no_primer}-L{layer}/{dim}-low_embeddings.npy")
                 high_embeddings = np.load(
-                    self._embeddings_dir / f"{self._model_name}-L{layer}/{dim}-high_embeddings.npy"
+                    self._embeddings_dir / f"{self._model_name_no_primer}-L{layer}/{dim}-high_embeddings.npy"
                 )
 
                 low_mean = np.average(low_embeddings, axis=0)
                 high_mean = np.average(high_embeddings, axis=0)
                 stereodim_base_change.append(high_mean - low_mean)
 
-            with open(self._embeddings_dir / f"{self._model_name}-L{layer}/stereodim_base_change.npy", "wb") as f:
+            with open(self._embeddings_dir / f"{self._model_name_no_primer}-L{layer}/stereodim_base_change.npy", "wb") as f:
                 np.save(f, stereodim_base_change)
 
             stereodim_base_change_inv[layer] = linalg.pinv(np.transpose(np.vstack(stereodim_base_change)))
@@ -310,9 +313,9 @@ class GeobiasPipeline:
             warmth_competence_base_change: list[np.ndarray] = []
 
             for dim in WARMTH_COMPETENCE_DIMENSIONS:
-                low_embeddings = np.load(self._embeddings_dir / f"{self._model_name}-L{layer}/{dim}-low_embeddings.npy")
+                low_embeddings = np.load(self._embeddings_dir / f"{self._model_name_no_primer}-L{layer}/{dim}-low_embeddings.npy")
                 high_embeddings = np.load(
-                    self._embeddings_dir / f"{self._model_name}-L{layer}/{dim}-high_embeddings.npy"
+                    self._embeddings_dir / f"{self._model_name_no_primer}-L{layer}/{dim}-high_embeddings.npy"
                 )
 
                 low_mean = np.average(low_embeddings, axis=0)
@@ -320,7 +323,7 @@ class GeobiasPipeline:
                 warmth_competence_base_change.append(high_mean - low_mean)
 
             with open(
-                self._embeddings_dir / f"{self._model_name}-L{layer}/warmth_competence_base_change.npy", "wb"
+                self._embeddings_dir / f"{self._model_name_no_primer}-L{layer}/warmth_competence_base_change.npy", "wb"
             ) as f:
                 np.save(f, warmth_competence_base_change)
 
@@ -461,11 +464,17 @@ class GeobiasPipeline:
 
     def __call__(self) -> None:
         """Execute the complete pipeline: compute, save, project, and gather results."""
-        self.compute_embeddings()
-        self.save_embeddings()
+        # Only calculate context embeddings once
+        if not self._primer_text:
+            self.compute_embeddings()
+            self.save_embeddings()
+
         warmth_comp_inv, stereodim_inv = self.compute_base_change()
         self.project(warmth_comp_inv, stereodim_inv)
         self.gather_results()
+
+        del self._tokenizer
+        del self._embedding_model
 
     def run_batched(self) -> None:
         """Execute the complete pipeline using batched processing for faster GPU utilization.
