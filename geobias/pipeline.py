@@ -176,8 +176,9 @@ class GeobiasPipeline:
                 continue
 
             layerwise_sense_embeddings = [
+                # make sure to not prime context embeddings
                 get_word_embedding_by_layer(
-                    self._tokenizer, self._embedding_model, context, self._primer_text, term, self._layers
+                    self._tokenizer, self._embedding_model, context, "", term, self._layers
                 )
                 for context in contexts
             ]
