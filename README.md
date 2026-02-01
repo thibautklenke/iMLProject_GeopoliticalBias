@@ -5,16 +5,8 @@ The code in this repository is based on https://github.com/carolinmschuster/prof
 Installation:
 
 ```bash
-uv venv
-source .venv/bin/activate
-uv sync
-```
-
-Alernatively, run
-
-```bash
 make env
-source .venv/bin/activate
+source .env/bin/activate
 make install
 ```
 
