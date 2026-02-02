@@ -12,7 +12,6 @@ PRIMER=(
     "+primer/liberal=primer_1"
 )
 
-model=""
 for model in "${MODELS[@]}"; do
 
     python -m geobias.tsne $model +plot=True
