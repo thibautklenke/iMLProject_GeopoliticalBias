@@ -1,6 +1,5 @@
-"""Plotting functions for bias profiles."""
+"""Plotting functions for bias profiles. Reproducing results from [Schuster et al., 2025]"""
 
-from typing import Any
 from omegaconf import DictConfig
 import matplotlib.pyplot as plt
 import matplotlib.axes
@@ -9,50 +8,6 @@ import numpy as np
 import json
 import hydra
 from pathlib import Path
-
-
-def _get_style_config() -> dict[str, dict[int, str]]:
-    """Returns default style configuration for plotting.
-
-    Returns
-    -------
-    dict[str, dict[str, str]]
-        Dictionary containing line and color styles.
-    """
-    return {
-        "line": {0: "solid", 1: "dashdot"},
-        "color": {0: "green", 1: "lightgreen"},
-    }
-
-
-def _load_populations(path: str) -> dict[str, list[str]]:
-    """Loads population groups from JSON file.
-
-    Parameters
-    ----------
-    path : str
-        Path to the populations JSON file.
-
-    Returns
-    -------
-    dict[str, list[str]]
-        Dictionary mapping group names to population lists.
-    """
-    with open(path) as f:
-        return json.load(f)
-
-
-def _setup_output_directory(output_dir: str) -> None:
-    """Creates output directory if it doesn't exist.
-
-    Parameters
-    ----------
-    output_dir : str
-        Path to the output directory.
-    """
-    path = Path(output_dir)
-    if not path.is_dir():
-        path.mkdir(parents=True)
 
 
 def _extract_plot_data(
@@ -122,7 +77,10 @@ def _plot_values(
     groups : tuple[str, str]
         Tuple of (group1, group2) names.
     """
-    styles = _get_style_config()
+    styles = {
+        "line": {0: "solid", 1: "dashdot"},
+        "color": {0: "green", 1: "lightgreen"},
+    }
 
     for idx, (group, values) in enumerate(plot_values.items()):
         color = styles["color"].get(idx, "gray")
@@ -261,9 +219,6 @@ def main(cfg: DictConfig) -> None:
         - projections_output_dir: Output directory for results
         - embeddings_output_dir: Output directory for results embeddings
 
-    Returns
-    -------
-    None
     """
     
     # Load configuration and data
@@ -271,9 +226,9 @@ def main(cfg: DictConfig) -> None:
     polar_labels: dict[str, tuple[str, str]] = cfg.dimensions.polar_labels
     model_name: str = f"{cfg.model.name.split('/')[-1]}-{cfg.primer.id}-{cfg.data.examples[0]}-{cfg.data.populations[0]}"
 
-    populations: dict[str, list[str]] = _load_populations(
-        f"data/populations/{cfg.data.populations}"
-    )
+    with open(f"data/populations/{cfg.data.populations}") as f:
+        populations = json.load(f)
+        
     groups: tuple[str, str] = (
         list(populations.keys())[0],
         list(populations.keys())[1],
@@ -284,7 +239,9 @@ def main(cfg: DictConfig) -> None:
     )
 
     # Setup output directory and figure
-    _setup_output_directory("output/figures")
+    path = Path("output/figures_schuster")
+    if not path.is_dir():
+        path.mkdir(parents=True)
     fig, ax1 = plt.subplots(1, 1)
 
     # Extract and organize plot data
@@ -301,7 +258,7 @@ def main(cfg: DictConfig) -> None:
     ax2 = ax1.twinx()
     _setup_right_axis(ax1, ax2, plot_labels["high labels"], bold_labels)
 
-    output_path: str = f"output/figures/{model_name}_bias_profile.pdf"
+    output_path: str = f"output/figures_schuster/{model_name}_bias_profile.pdf"
     _save_figure(fig, ax1, model_name, len(dimensions), output_path)
 
     print(f"Bias profile saved in file: {output_path}")
