@@ -9,8 +9,8 @@ UV ?= uv
 
 env:
 	$(PIP) install uv
-	$(PYTHON) -m $(UV) venv --python=3.12 .env --clear
-	. .env/bin/activate && $(PYTHON) -m ensurepip --upgrade && $(PYTHON) -m $(PIP) install uv --upgrade && $(UV) $(PIP) install setuptools wheel
+	$(PYTHON) -m $(UV) venv --python=3.12 .venv --clear
+	. .venv/bin/activate && $(PYTHON) -m ensurepip --upgrade && $(PYTHON) -m $(PIP) install uv --upgrade && $(UV) $(PIP) install setuptools wheel
 	# Manually activate env. Does not work with make somehow
 
 install:
