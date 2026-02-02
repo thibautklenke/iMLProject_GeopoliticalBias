@@ -26,7 +26,7 @@ make install
 Manual Alternative:
 
 ```bash
-uv venv --python3.12
+uv venv --python=3.12
 source .venv/bin/activate
 uv sync
 ```
