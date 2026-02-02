@@ -1,6 +1,6 @@
 # Examining Bias in Geopolitically Influenced LLMs via Prompting
 
-The code in this repository is based on https://github.com/carolinmschuster/profiling-bias-in-llms.
+The stereotype projections presented in this repository is based on https://github.com/carolinmschuster/profiling-bias-in-llms.
 
 We evaluated three Large Language Models (LLMs) from China, the EU and the US regarding their gender bias.
 For doing so, we examined the change in their gender bias upon priming with different political stances.
@@ -10,7 +10,7 @@ Installation:
 
 ```bash
 make env
-source .env/bin/activate
+source .venv/bin/activate
 make install
 ```
 
@@ -20,12 +20,6 @@ Generate Embeddings:
 
 ```bash
 python -m geobias.geobias +model=qwen +primer/conservative=primer_1
-```
-
-Plot those Embeddings:
-
-```bash
-python -m geobias.plotting +model=qwen
 ```
 
 ## Our Experiments
