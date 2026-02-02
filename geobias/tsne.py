@@ -103,7 +103,7 @@ class TSNEPipeline:
         if not self._plot:
             # Load tokenizer and model
             self._tokenizer, self._embedding_model = load_model_for_embedding_retrieval(
-                self._model_name, self._device, hf_token=self._hf_token
+                model_name, self._device, hf_token=self._hf_token
             )
 
             self._layers = list(range(get_number_of_hidden_states(self._tokenizer, self._embedding_model)))
