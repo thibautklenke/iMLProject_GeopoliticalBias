@@ -29,7 +29,12 @@ from geobias.utils import (
 
 
 class TSNEPipeline:
-    """Class."""
+    """t-SNE pipeline for visualizing stereotype embeddings and group comparisons.
+
+    This pipeline loads populations and a transformer model/tokenizer, computes
+    and saves group-wise word embeddings, and produces t-SNE visualizations
+    using either the Euclidean distance or a stereodimension-aware metric.
+    """
 
     def __init__(  # noqa: PLR0913
         self,
@@ -44,7 +49,32 @@ class TSNEPipeline:
         primer_name: str = "default",
         plot: bool = False,  # noqa: FBT001, FBT002
     ) -> None:
-        """Func."""
+        """Initialize the TSNEPipeline.
+
+        Parameters
+        ----------
+        populations_path : str
+            Path to populations JSON file relative to data/populations/.
+        model_name : str
+            Name or path of the transformer model.
+        examples_path : str
+            Path to examples JSONL file relative to data/examples/.
+        device : str, optional
+            Device for model inference, by default "cuda" if available else "cpu".
+        hf_token : str, optional
+            Hugging Face API token for private models, by default "".
+        embeddings_dir : str, optional
+            Output directory for embeddings relative to output/, by default "embeddings".
+        dim : int, optional
+            Number of dimensions for t-SNE (e.g., 2 for 2D plots), by default 2.
+        primer_text : str, optional
+            Optional primer/system prompt to prepend to contexts, by default "".
+        primer_name : str, optional
+            Name identifier for primer variant, by default "default".
+        plot : bool, optional
+            If True, load precomputed embeddings and produce t-SNE plots; if False,
+            compute and save embeddings instead, by default False.
+        """
         self._dim = dim
         self._populations_path = populations_path
         self._model_name = model_name
@@ -86,7 +116,14 @@ class TSNEPipeline:
         self._result: dict[str, np.ndarray] = {}
 
     def compute_embeddings(self) -> None:
-        """Doc."""
+        """Compute group-wise word embeddings and store results.
+
+        For each population group, iterates through terms, generates context
+        sentences from templates, retrieves layer-wise token embeddings from
+        the model, averages across templates and contexts, and stores the
+        resulting per-term embeddings (last layer) for the group in
+        ``self._result_embedding``.
+        """
         for group, terms in self._populations.items():
             group_embeddings = None
             for term in tqdm(terms, desc=f"Projection {group} to stereotype dimensions", position=0, leave=True):
@@ -111,7 +148,12 @@ class TSNEPipeline:
             self._result_embedding[group] = group_embeddings
 
     def save_embeddings(self) -> None:
-        """Save."""
+        """Save computed embeddings to disk.
+
+        Ensures the directory ``output/tsne_embeddings`` exists and saves each
+        group's embeddings as a NumPy ``.npy`` file named
+        ``{model_name}_{group}.npy`` under that directory.
+        """
         embeddings_dir = Path("output/tsne_embeddings")
         if not embeddings_dir.is_dir():
             embeddings_dir.mkdir(parents=True)
@@ -120,7 +162,12 @@ class TSNEPipeline:
             np.save(embeddings_dir / f"{self._model_name}_{group}.npy", self._result_embedding[group])
 
     def load_embeddings(self) -> None:
-        """Load."""
+        """Load precomputed embeddings from disk into ``self._result_embedding``.
+
+        Loads per-group NumPy arrays from ``output/tsne_embeddings``. Raises an
+        Exception with guidance if the directory is missing, instructing to
+        generate embeddings with ``plot=False``.
+        """
         embeddings_dir = Path("output/tsne_embeddings")
         if not embeddings_dir.is_dir():
             raise Exception("Generate data first with plot=False")
@@ -129,14 +176,39 @@ class TSNEPipeline:
             self._result_embedding[group] = np.load(embeddings_dir / f"{self._model_name}_{group}.npy")
 
     def stereodim_metric(self, a: np.ndarray, b: np.ndarray) -> float:
-        """."""
+        """Compute stereodimension-aware distance between two vectors.
+
+        Projects the input vectors into the stereotype-dimension basis using the
+        precomputed inverse base change matrix and returns the Euclidean norm
+        of their difference.
+
+        Parameters
+        ----------
+        a : np.ndarray
+            First embedding vector.
+        b : np.ndarray
+            Second embedding vector.
+
+        Returns
+        -------
+        float
+            Euclidean distance between the two projected vectors.
+        """
         a_stereo = self._inv_base_change @ a
         b_stereo = self._inv_base_change @ b
 
         return linalg.norm(a_stereo - b_stereo)
 
     def compute_tsne(self, metric: str) -> None:
-        """Doc."""
+        """Compute t-SNE projections for the stored embeddings using a metric.
+
+        Parameters
+        ----------
+        metric : str
+            Either ``'euclidean'`` or ``'stereodim'``. ``'stereodim'`` uses the
+            ``stereodim_metric`` function to measure distances in the
+            stereotype-dimension space.
+        """
         # TSNE
         if metric == "euclidean":
             tsne = TSNE(n_components=self._dim, metric="euclidean", random_state=0)
@@ -159,7 +231,12 @@ class TSNEPipeline:
         self._result[metric] = result_embeddings
 
     def plot_tsne(self) -> None:
-        """."""
+        """Plot stored t-SNE projections and save the figure.
+
+        Creates one subplot per metric stored in ``self._result`` and produces a
+        scatter plot for each group's projection. The resulting figure is saved
+        to ``figures/tsne/{self._model_name}.pdf``.
+        """
         plots = len(self._result.keys())
         fig, ax = plt.subplots(1, plots)
 
@@ -175,7 +252,12 @@ class TSNEPipeline:
         fig.savefig(f"figures/tsne/{self._model_name}.pdf")
 
     def __call__(self) -> None:
-        """Doc."""
+        """Run the TSNE pipeline.
+
+        If ``self._plot`` is False, computes and saves embeddings. If True,
+        loads precomputed embeddings, computes t-SNE projections using both
+        stereodimension and Euclidean metrics, and produces the plots.
+        """
         if not self._plot:
             self.compute_embeddings()
             self.save_embeddings()
