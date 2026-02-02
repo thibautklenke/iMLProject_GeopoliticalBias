@@ -19,7 +19,7 @@ for model in "${MODELS[@]}"; do
 
     for primer in "${PRIMER[@]}"; do
 
-        python -m geobias.tsne $model $primer +plot=False -m
+        python -m geobias.tsne $model $primer +plot=False
 
     done
     
