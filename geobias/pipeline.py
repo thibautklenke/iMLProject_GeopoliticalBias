@@ -124,9 +124,7 @@ class GeobiasPipeline:
         )
         self._layers = list(range(get_number_of_hidden_states(self._tokenizer, self._embedding_model)))
         self._model_name_no_primer = (
-            f"{self._model_name.split('/')[-1]}"
-            f"-{self._examples_path[0]}"
-            f"-{self._populations_path[0]}"
+            f"{self._model_name.split('/')[-1]}" f"-{self._examples_path[0]}" f"-{self._populations_path[0]}"
         )
         self._model_name = (
             f"{self._model_name.split('/')[-1]}"
@@ -180,9 +178,7 @@ class GeobiasPipeline:
 
             layerwise_sense_embeddings = [
                 # make sure to not prime context embeddings
-                get_word_embedding_by_layer(
-                    self._tokenizer, self._embedding_model, context, "", term, self._layers
-                )
+                get_word_embedding_by_layer(self._tokenizer, self._embedding_model, context, "", term, self._layers)
                 for context in contexts
             ]
             layerwise_sense_embeddings = torch.stack(layerwise_sense_embeddings).mean(dim=0)
@@ -228,7 +224,7 @@ class GeobiasPipeline:
 
             # Use batched function to process all contexts at once
             layerwise_sense_embeddings = get_word_embeddings_by_layer_batched(
-                self._tokenizer, self._embedding_model, contexts, self._primer_text, term, self._layers
+                self._tokenizer, self._embedding_model, contexts, "", term, self._layers
             )
 
             pole_key = f"{dimension}-{direction}"
@@ -296,7 +292,9 @@ class GeobiasPipeline:
             stereodim_base_change: list[np.ndarray] = []
 
             for dim in self._stereotype_dimensions:
-                low_embeddings = np.load(self._embeddings_dir / f"{self._model_name_no_primer}-L{layer}/{dim}-low_embeddings.npy")
+                low_embeddings = np.load(
+                    self._embeddings_dir / f"{self._model_name_no_primer}-L{layer}/{dim}-low_embeddings.npy"
+                )
                 high_embeddings = np.load(
                     self._embeddings_dir / f"{self._model_name_no_primer}-L{layer}/{dim}-high_embeddings.npy"
                 )
@@ -305,7 +303,9 @@ class GeobiasPipeline:
                 high_mean = np.average(high_embeddings, axis=0)
                 stereodim_base_change.append(high_mean - low_mean)
 
-            with open(self._embeddings_dir / f"{self._model_name_no_primer}-L{layer}/stereodim_base_change.npy", "wb") as f:
+            with open(
+                self._embeddings_dir / f"{self._model_name_no_primer}-L{layer}/stereodim_base_change.npy", "wb"
+            ) as f:
                 np.save(f, stereodim_base_change)
 
             stereodim_base_change_inv[layer] = linalg.pinv(np.transpose(np.vstack(stereodim_base_change)))
@@ -313,7 +313,9 @@ class GeobiasPipeline:
             warmth_competence_base_change: list[np.ndarray] = []
 
             for dim in WARMTH_COMPETENCE_DIMENSIONS:
-                low_embeddings = np.load(self._embeddings_dir / f"{self._model_name_no_primer}-L{layer}/{dim}-low_embeddings.npy")
+                low_embeddings = np.load(
+                    self._embeddings_dir / f"{self._model_name_no_primer}-L{layer}/{dim}-low_embeddings.npy"
+                )
                 high_embeddings = np.load(
                     self._embeddings_dir / f"{self._model_name_no_primer}-L{layer}/{dim}-high_embeddings.npy"
                 )
@@ -482,8 +484,13 @@ class GeobiasPipeline:
         This method uses batched versions of compute_embeddings and project,
         which process multiple contexts in a single forward pass.
         """
-        self.compute_embeddings_batched()
-        self.save_embeddings()
+        if not self._primer_text:
+            self.compute_embeddings_batched()
+            self.save_embeddings()
+
         warmth_comp_inv, stereodim_inv = self.compute_base_change()
         self.project_batched(warmth_comp_inv, stereodim_inv)
         self.gather_results()
+
+        del self._tokenizer
+        del self._embedding_model
