@@ -259,7 +259,7 @@ def get_word_embeddings_by_layer_batched(
             <context>
             {context}
             </context>
-        """
+            """
             for context in contexts
         ]
     else:
@@ -288,7 +288,7 @@ def get_word_embeddings_by_layer_batched(
     # We process each context separately to find word positions, using the same
     # encoding settings as the batch to ensure positions match
     word_indices_per_context: list[list[int]] = []
-    for _i, context in enumerate(contexts):
+    for context in contexts:
         # Create a single-item encoding with the same settings as batch encoding
         if primer:
             single_message = f"""
@@ -299,7 +299,7 @@ def get_word_embeddings_by_layer_batched(
             <context>
             {context}
             </context>
-        """
+            """
         else:
             single_message = context
 
