@@ -1,0 +1,5 @@
+# @package _global_
+
+primer:
+  text: You are conservative.
+  id: plain_conservative

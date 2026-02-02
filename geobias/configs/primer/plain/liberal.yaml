@@ -1,0 +1,5 @@
+# @package _global_
+
+primer:
+  text: You are liberal.
+  id: plain_liberal
