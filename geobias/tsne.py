@@ -42,6 +42,7 @@ class TSNEPipeline:
         dim: int = 2,
         primer_text: str = "",
         primer_name: str = "default",
+        plot: bool = False,
     ):
         """Func."""
         self._dim = dim
@@ -53,6 +54,7 @@ class TSNEPipeline:
         self._primer_text = primer_text
         self._primer_name = primer_name
         self._examples_path = examples_path
+        self._plot = plot
 
         # Load names which we infer
         with open(f"data/populations/{self._populations_path}") as f:
@@ -63,6 +65,11 @@ class TSNEPipeline:
             self._model_name, self._device, hf_token=self._hf_token
         )
         self._layers = list(range(get_number_of_hidden_states(self._tokenizer, self._embedding_model)))
+        self._model_name_no_primer = (
+            f"{self._model_name.split('/')[-1]}"
+            f"-{self._examples_path[0]}"
+            f"-{self._populations_path[0]}"
+        )
         self._model_name = (
             f"{self._model_name.split('/')[-1]}"
             f"-{self._primer_name}"
@@ -71,7 +78,7 @@ class TSNEPipeline:
         )
 
         # Load base change matrix and compute inverse
-        self._base_change = np.load(self._embeddings_dir / f"{self._model_name}-L{len(self._layers) - 1}/stereodim_base_change.npy")
+        self._base_change = np.load(self._embeddings_dir / f"{self._model_name_no_primer}-L{len(self._layers) - 1}/stereodim_base_change.npy")
         self._inv_base_change = linalg.pinv(np.transpose(self._base_change))
 
         # Embedding result
@@ -102,6 +109,24 @@ class TSNEPipeline:
                     group_embeddings = np.concat([group_embeddings, sense_embeddings.unsqueeze(dim=0)], axis=0)
 
             self._result_embedding[group] = group_embeddings
+
+    def save_embeddings(self):
+        """Save."""
+        embeddings_dir = Path("output/tsne_embeddings")
+        if not embeddings_dir.is_dir():
+            embeddings_dir.mkdir(parents=True)
+
+        for group in self._populations:
+            np.save(embeddings_dir / f"{self._model_name}_{group}.npy", self._result_embedding[group])
+
+    def load_embeddings(self):
+        """Load."""
+        embeddings_dir = Path("output/tsne_embeddings")
+        if not embeddings_dir.is_dir():
+            raise Exception("Generate data first with plot=False")
+
+        for group in self._populations:
+            self._result_embedding[group] = np.load(embeddings_dir / f"{self._model_name}_{group}.npy")
 
     def stereodim_metric(self, a, b):
         """."""
@@ -144,14 +169,23 @@ class TSNEPipeline:
             for group_emb in result_emb:
                 sns.scatterplot(x=group_emb[:, 0], y=group_emb[:, 1], ax=ax[idx])
 
+        figures_dir = Path("figures/tsne")
+        if not figures_dir.is_dir():
+            figures_dir.mkdir(parents=True)
+
         fig.savefig(f"figures/tsne/{self._model_name}.pdf")
 
     def __call__(self) -> None:
         """Doc."""
-        self.compute_embeddings()
-        self.compute_tsne("stereodim")
-        self.compute_tsne("euclidean")
-        self.plot_tsne()
+        if not self._plot:
+            self.compute_embeddings()
+            self.save_embeddings()
+
+        if self._plot:
+            self.load_embeddings()
+            self.compute_tsne("stereodim")
+            self.compute_tsne("euclidean")
+            self.plot_tsne()
 
 
 @hydra.main(config_path="configs", config_name="pipeline.yaml", version_base=None)  # type: ignore
@@ -171,6 +205,7 @@ def main(cfg: DictConfig) -> None:
         primer_text=cfg.primer.text,
         primer_name=cfg.primer.name,
         hf_token=cfg.model.hf_token if "hf_token" in cfg.model else "",
+        plot=cfg.plot,
     )
 
     pipeline()
