@@ -13,9 +13,7 @@ env:
 	# Manually activate env. Does not work with make
 
 install:
-	$(UV) $(PIP) install setuptools wheel swig
-	$(UV) $(PIP) install -e ".[dev]"
-	pre-commit install
+	$(UV) sync
 
 check:
 	pre-commit run --all-files
