@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -86,15 +87,6 @@ class TSNEPipeline:
         self._examples_path = examples_path
         self._plot = plot
 
-        # Load names which we infer
-        with open(f"data/populations/{self._populations_path}") as f:
-            self._populations = json.load(f)
-
-        # Load tokenizer and model
-        self._tokenizer, self._embedding_model = load_model_for_embedding_retrieval(
-            self._model_name, self._device, hf_token=self._hf_token
-        )
-        self._layers = list(range(get_number_of_hidden_states(self._tokenizer, self._embedding_model)))
         self._model_name_no_primer = (
             f"{self._model_name.split('/')[-1]}" f"-{self._examples_path[0]}" f"-{self._populations_path[0]}"
         )
@@ -105,9 +97,28 @@ class TSNEPipeline:
             f"-{self._populations_path[0]}"
         )
 
+        # Load names which we infer
+        with open(f"data/populations/{self._populations_path}") as f:
+            self._populations = json.load(f)
+
+        if not self._plot:
+            # Load tokenizer and model
+            self._tokenizer, self._embedding_model = load_model_for_embedding_retrieval(
+                self._model_name, self._device, hf_token=self._hf_token
+            )
+
+            self._layers = len(list(range(get_number_of_hidden_states(self._tokenizer, self._embedding_model)))) - 1
+        else:
+            # Figure out layer count from folder structure
+            layer_indices = [ int(entry.name.removeprefix(f"{self._model_name_no_primer}-L"))
+                for entry in self._embeddings_dir.iterdir()
+                if entry.name.startswith(f"{self._model_name_no_primer}-L")
+            ]
+            self._layers = max(layer_indices)
+
         # Load base change matrix and compute inverse
         self._base_change = np.load(
-            self._embeddings_dir / f"{self._model_name_no_primer}-L{len(self._layers) - 1}/stereodim_base_change.npy"
+            self._embeddings_dir / f"{self._model_name_no_primer}-L{self._layers}/stereodim_base_change.npy"
         )
         self._inv_base_change = linalg.pinv(np.transpose(self._base_change))
 
