@@ -31,7 +31,7 @@ from geobias.utils import (
 class TSNEPipeline:
     """Class."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         populations_path: str,
         model_name: str,
@@ -42,8 +42,8 @@ class TSNEPipeline:
         dim: int = 2,
         primer_text: str = "",
         primer_name: str = "default",
-        plot: bool = False,
-    ):
+        plot: bool = False,  # noqa: FBT001, FBT002
+    ) -> None:
         """Func."""
         self._dim = dim
         self._populations_path = populations_path
@@ -66,9 +66,7 @@ class TSNEPipeline:
         )
         self._layers = list(range(get_number_of_hidden_states(self._tokenizer, self._embedding_model)))
         self._model_name_no_primer = (
-            f"{self._model_name.split('/')[-1]}"
-            f"-{self._examples_path[0]}"
-            f"-{self._populations_path[0]}"
+            f"{self._model_name.split('/')[-1]}" f"-{self._examples_path[0]}" f"-{self._populations_path[0]}"
         )
         self._model_name = (
             f"{self._model_name.split('/')[-1]}"
@@ -78,14 +76,16 @@ class TSNEPipeline:
         )
 
         # Load base change matrix and compute inverse
-        self._base_change = np.load(self._embeddings_dir / f"{self._model_name_no_primer}-L{len(self._layers) - 1}/stereodim_base_change.npy")
+        self._base_change = np.load(
+            self._embeddings_dir / f"{self._model_name_no_primer}-L{len(self._layers) - 1}/stereodim_base_change.npy"
+        )
         self._inv_base_change = linalg.pinv(np.transpose(self._base_change))
 
         # Embedding result
-        self._result_embedding = {}
-        self._result = {}
+        self._result_embedding: dict[str, np.ndarray] = {}
+        self._result: dict[str, np.ndarray] = {}
 
-    def compute_embeddings(self):
+    def compute_embeddings(self) -> None:
         """Doc."""
         for group, terms in self._populations.items():
             group_embeddings = None
@@ -110,7 +110,7 @@ class TSNEPipeline:
 
             self._result_embedding[group] = group_embeddings
 
-    def save_embeddings(self):
+    def save_embeddings(self) -> None:
         """Save."""
         embeddings_dir = Path("output/tsne_embeddings")
         if not embeddings_dir.is_dir():
@@ -119,7 +119,7 @@ class TSNEPipeline:
         for group in self._populations:
             np.save(embeddings_dir / f"{self._model_name}_{group}.npy", self._result_embedding[group])
 
-    def load_embeddings(self):
+    def load_embeddings(self) -> None:
         """Load."""
         embeddings_dir = Path("output/tsne_embeddings")
         if not embeddings_dir.is_dir():
@@ -128,21 +128,20 @@ class TSNEPipeline:
         for group in self._populations:
             self._result_embedding[group] = np.load(embeddings_dir / f"{self._model_name}_{group}.npy")
 
-    def stereodim_metric(self, a, b):
+    def stereodim_metric(self, a: np.ndarray, b: np.ndarray) -> float:
         """."""
         a_stereo = self._inv_base_change @ a
         b_stereo = self._inv_base_change @ b
 
         return linalg.norm(a_stereo - b_stereo)
 
-
-    def compute_tsne(self, metric):
+    def compute_tsne(self, metric: str) -> None:
         """Doc."""
         # TSNE
         if metric == "euclidean":
-            tsne = TSNE(n_components = self._dim, metric="euclidean", random_state=0)
+            tsne = TSNE(n_components=self._dim, metric="euclidean", random_state=0)
         elif metric == "stereodim":
-            tsne = TSNE(n_components = self._dim, metric=self.stereodim_metric, random_state=0)
+            tsne = TSNE(n_components=self._dim, metric=self.stereodim_metric, random_state=0)
         else:
             raise ValueError("Wrong metric")
 
@@ -159,7 +158,7 @@ class TSNEPipeline:
 
         self._result[metric] = result_embeddings
 
-    def plot_tsne(self):
+    def plot_tsne(self) -> None:
         """."""
         plots = len(self._result.keys())
         fig, ax = plt.subplots(1, plots)
