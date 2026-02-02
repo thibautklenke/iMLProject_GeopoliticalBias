@@ -108,7 +108,7 @@ def get_number_of_hidden_states(tokenizer: PreTrainedTokenizer, embedding_model:
     int
         Number of hidden layers.
     """
-    encoded = tokenizer.encode_plus("test", return_tensors="pt").to(embedding_model.device)
+    encoded = tokenizer._encode_plus("test", return_tensors="pt").to(embedding_model.device)
     with torch.inference_mode():
         hidden_states = embedding_model(**encoded).hidden_states
     return len(hidden_states)

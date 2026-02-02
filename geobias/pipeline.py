@@ -292,6 +292,11 @@ class GeobiasPipeline:
             stereodim_base_change: list[np.ndarray] = []
 
             for dim in self._stereotype_dimensions:
+                if not Path(
+                    self._embeddings_dir / f"{self._model_name_no_primer}-L{layer}/{dim}-low_embeddings.npy"
+                ).exists():
+                    raise Exception("Must run without primer first.")
+
                 low_embeddings = np.load(
                     self._embeddings_dir / f"{self._model_name_no_primer}-L{layer}/{dim}-low_embeddings.npy"
                 )
