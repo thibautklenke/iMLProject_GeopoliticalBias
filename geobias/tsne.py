@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -110,7 +109,8 @@ class TSNEPipeline:
             self._layers = list(range(get_number_of_hidden_states(self._tokenizer, self._embedding_model)))
         else:
             # Figure out layer count from folder structure
-            self._layers = [ int(entry.name.removeprefix(f"{self._model_name_no_primer}-L"))
+            self._layers = [
+                int(entry.name.removeprefix(f"{self._model_name_no_primer}-L"))
                 for entry in self._embeddings_dir.iterdir()
                 if entry.name.startswith(f"{self._model_name_no_primer}-L")
             ]
@@ -259,7 +259,8 @@ class TSNEPipeline:
         if not figures_dir.is_dir():
             figures_dir.mkdir(parents=True)
 
-        fig.savefig(f"figures/tsne/{self._model_name}.pdf")
+        fig.savefig(f"figures/tsne/{self._model_name}.pdf", bbox_inches="tight")
+        fig.savefig(f"figures/tsne/{self._model_name}.png", bbox_inches="tight", dpi=600)
 
     def __call__(self) -> None:
         """Run the TSNE pipeline.
