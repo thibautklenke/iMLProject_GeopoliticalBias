@@ -7,9 +7,9 @@ MODELS=(
 )
 
 PRIMER=(
-    "+primer/conservative=primer_1.yaml"
-    "+primer/democratic=primer_1.yaml"
-    "+primer/liberal=primer_1.yaml"
+    "+primer/conservative=primer_1"
+    "+primer/democratic=primer_1"
+    "+primer/liberal=primer_1"
 )
 
 model=""

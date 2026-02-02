@@ -7,9 +7,9 @@ MODELS=(
 )
 
 PRIMER=(
-    "+primer/conservative=primer_1.yaml"
-    "+primer/democratic=primer_1.yaml"
-    "+primer/liberal=primer_1.yaml"
+    "+primer/conservative=primer_1"
+    "+primer/democratic=primer_1"
+    "+primer/liberal=primer_1"
 )
 
 model=""
@@ -19,7 +19,7 @@ for model in "${MODELS[@]}"; do
 
     for primer in "${PRIMER[@]}"; do
 
-        python -m geobias.tsne $model $primer +plot=True -m
+        python -m geobias.tsne $model $primer +plot=True
 
     done
 
