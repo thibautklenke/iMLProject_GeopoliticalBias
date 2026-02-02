@@ -14,8 +14,6 @@ PRIMER=(
 
 for model in "${MODELS[@]}"; do
 
-    python -m geobias.tsne $model +plot=True
-
     for primer in "${PRIMER[@]}"; do
 
         python -m geobias.tsne $model $primer +plot=True

@@ -122,8 +122,10 @@ class TSNEPipeline:
         self._inv_base_change = linalg.pinv(np.transpose(self._base_change))
 
         # Embedding result
-        self._result_embedding: dict[str, np.ndarray] = {}
-        self._result: dict[str, np.ndarray] = {}
+        self._result_embedding_default = {}
+        self._result_embedding_primer = {}
+        self._result_default = []
+        self._result_primer = []
 
     def compute_embeddings(self) -> None:
         """Compute group-wise word embeddings and store results.
@@ -182,8 +184,11 @@ class TSNEPipeline:
         if not embeddings_dir.is_dir():
             raise Exception("Generate data first with plot=False")
 
+        model_name_default = self._model_name.replace(self._primer_name, "default")
+
         for group in self._populations:
-            self._result_embedding[group] = np.load(embeddings_dir / f"{self._model_name}_{group}.npy")
+            self._result_embedding_default[group] = np.load(embeddings_dir / f"{model_name_default}_{group}.npy")
+            self._result_embedding_primer[group] = np.load(embeddings_dir / f"{self._model_name}_{group}.npy")
 
     def stereodim_metric(self, a: np.ndarray, b: np.ndarray) -> float:
         """Compute stereodimension-aware distance between two vectors.
@@ -209,25 +214,12 @@ class TSNEPipeline:
 
         return linalg.norm(a_stereo - b_stereo)
 
-    def compute_tsne(self, metric: str) -> None:
-        """Compute t-SNE projections for the stored embeddings using a metric.
-
-        Parameters
-        ----------
-        metric : str
-            Either ``'euclidean'`` or ``'stereodim'``. ``'stereodim'`` uses the
-            ``stereodim_metric`` function to measure distances in the
-            stereotype-dimension space.
-        """
+    def compute_tsne(self, embeddings: dict) -> list:
+        """Compute t-SNE projections for the stored embeddings."""
         # TSNE
-        if metric == "euclidean":
-            tsne = TSNE(n_components=self._dim, metric="euclidean", random_state=0)
-        elif metric == "stereodim":
-            tsne = TSNE(n_components=self._dim, metric=self.stereodim_metric, random_state=0)
-        else:
-            raise ValueError("Wrong metric")
+        tsne = TSNE(n_components=self._dim, metric=self.stereodim_metric, random_state=0)
 
-        group_embeddings = list(self._result_embedding.values())
+        group_embeddings = list(embeddings.values())
         total_embeddings = np.concat(group_embeddings, axis=0)
         result = tsne.fit_transform(total_embeddings)
 
@@ -238,7 +230,7 @@ class TSNEPipeline:
             result_embeddings.append(result[range(idx, idx + size), :])
             idx += size
 
-        self._result[metric] = result_embeddings
+        return result_embeddings
 
     def plot_tsne(self) -> None:
         """Plot stored t-SNE projections and save the figure.
@@ -247,13 +239,25 @@ class TSNEPipeline:
         scatter plot for each group's projection. The resulting figure is saved
         to ``figures/tsne/{self._model_name}.pdf``.
         """
-        plots = len(self._result.keys())
-        fig, ax = plt.subplots(1, plots)
+        poplist = list(self._populations.keys())
 
-        for idx, (metric, result_emb) in enumerate(self._result.items()):
-            ax[idx].set_title(metric)
-            for group_emb in result_emb:
-                sns.scatterplot(x=group_emb[:, 0], y=group_emb[:, 1], ax=ax[idx])
+        fig, ax = plt.subplots(1, 2)
+        fig.suptitle(f"t-SNE: {'-'.join(self._model_name.split('-')[:-3])}\nStereotype Metric", wrap=True)
+
+        ax[0].set_title("No Primer", y=-0.15)
+        for group_idx, group_emb in enumerate(self._result_default):
+            sns.scatterplot(x=group_emb[:, 0], y=group_emb[:, 1],
+                ax=ax[0], label=poplist[group_idx], legend=False
+            )
+
+        ax[1].set_title(f"{self._primer_name.capitalize()} Primer", y=-0.15)
+        for group_idx, group_emb in enumerate(self._result_primer):
+            sns.scatterplot(x=group_emb[:, 0], y=group_emb[:, 1],
+                ax=ax[1], label=poplist[group_idx], legend=False
+            )
+
+        handles, labels = ax[0].get_legend_handles_labels()
+        fig.legend(handles, labels)
 
         figures_dir = Path("figures/tsne")
         if not figures_dir.is_dir():
@@ -275,8 +279,8 @@ class TSNEPipeline:
 
         if self._plot:
             self.load_embeddings()
-            self.compute_tsne("stereodim")
-            self.compute_tsne("euclidean")
+            self._result_default = self.compute_tsne(self._result_embedding_default)
+            self._result_primer = self.compute_tsne(self._result_embedding_primer)
             self.plot_tsne()
 
 
