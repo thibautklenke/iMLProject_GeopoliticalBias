@@ -197,11 +197,11 @@ def get_word_embedding_by_layer(
             {context}
             </context>
         """
-        encoded_context = tokenizer.encode_plus(message, return_tensors="pt", truncation=True).to(
+        encoded_context = tokenizer._encode_plus(message, return_tensors="pt", truncation=True).to(
             embedding_model.device
         )
     else:
-        encoded_context = tokenizer.encode_plus(context, return_tensors="pt", truncation=True).to(
+        encoded_context = tokenizer._encode_plus(context, return_tensors="pt", truncation=True).to(
             embedding_model.device
         )
 
@@ -315,7 +315,7 @@ def get_word_embeddings_by_layer_batched(
             single_message = context
 
         # Use encode_plus with same settings as batch to ensure tokenization matches
-        single_encoded = tokenizer.encode_plus(single_message, return_tensors="pt", truncation=True, padding=False)
+        single_encoded = tokenizer._encode_plus(single_message, return_tensors="pt", truncation=True, padding=False)
         word_idx = get_word_idx(tokenizer, single_encoded, word)
         word_indices_per_context.append(word_idx)
 
