@@ -1,7 +1,10 @@
-"""Pipeline for computing and projecting word embeddings across stereotype dimensions."""
+"""Pipeline for computing and projecting word embeddings across stereotype dimensions.
+Based on [Schuster et al., 2025].
+"""
 
 from __future__ import annotations
 
+import gc
 import json
 from pathlib import Path
 from typing import Any
@@ -10,7 +13,6 @@ import nltk
 import numpy as np
 import pandas as pd
 import torch
-from scipy import linalg
 from tqdm import tqdm
 
 from geobias.utils import (
@@ -273,75 +275,67 @@ class GeobiasPipeline:
             with open(layer_dir / "sense_embedding_labels.txt", "w") as f:
                 f.writelines(f"{label}\n" for label in layer_dict["sense_embedding_labels"])
 
-    def compute_base_change(self) -> tuple[dict[int, np.ndarray], dict[int, np.ndarray]]:
-        """Compute base change matrices for projecting embeddings.
-
-        Computes direction vectors for each stereotype dimension and warmth/competence
-        aggregate dimensions, then calculates pseudo-inverse matrices for projection.
+    def compute_base_change(self) -> tuple[dict[int, torch.Tensor], dict[int, torch.Tensor]]:
+        """Compute base change matrices for projecting embeddings using Torch.
 
         Returns
         -------
-        tuple[dict[int, np.ndarray], dict[int, np.ndarray]]
-            Tuple of (warmth_competence_base_change_inv, stereodim_base_change_inv)
-            dicts mapping layer indices to pseudo-inverse matrices.
+        tuple[dict[int, torch.Tensor], dict[int, torch.Tensor]]
+            Tuple of inv dicts mapping layer indices to Torch Tensors (on device).
         """
-        warmth_competence_base_change_inv: dict[int, np.ndarray] = {}
-        stereodim_base_change_inv: dict[int, np.ndarray] = {}
+        warmth_competence_base_change_inv: dict[int, torch.Tensor] = {}
+        stereodim_base_change_inv: dict[int, torch.Tensor] = {}
 
         for layer in tqdm(self._layers, desc="Preparing layerwise base change matrices", position=0, leave=True):
-            stereodim_base_change: list[np.ndarray] = []
+            stereodim_base_change_list: list[np.ndarray] = []
 
             for dim in self._stereotype_dimensions:
-                if not Path(
-                    self._embeddings_dir / f"{self._model_name_no_primer}-L{layer}/{dim}-low_embeddings.npy"
-                ).exists():
+                base_path = self._embeddings_dir / f"{self._model_name_no_primer}-L{layer}"
+
+                if not (base_path / f"{dim}-low_embeddings.npy").exists():
                     raise Exception("Must run without primer first.")
 
-                low_embeddings = np.load(
-                    self._embeddings_dir / f"{self._model_name_no_primer}-L{layer}/{dim}-low_embeddings.npy"
-                )
-                high_embeddings = np.load(
-                    self._embeddings_dir / f"{self._model_name_no_primer}-L{layer}/{dim}-high_embeddings.npy"
-                )
+                low_embeddings = np.load(base_path / f"{dim}-low_embeddings.npy")
+                high_embeddings = np.load(base_path / f"{dim}-high_embeddings.npy")
 
+                # Compute means
                 low_mean = np.average(low_embeddings, axis=0)
                 high_mean = np.average(high_embeddings, axis=0)
-                stereodim_base_change.append(high_mean - low_mean)
+                stereodim_base_change_list.append(high_mean - low_mean)
 
-            with open(
-                self._embeddings_dir / f"{self._model_name_no_primer}-L{layer}/stereodim_base_change.npy", "wb"
-            ) as f:
-                np.save(f, stereodim_base_change)
+            # Save the raw difference vectors (CPU/Numpy for compatibility)
+            with open(base_path / "stereodim_base_change.npy", "wb") as f:
+                np.save(f, stereodim_base_change_list)
 
-            stereodim_base_change_inv[layer] = linalg.pinv(np.transpose(np.vstack(stereodim_base_change)))
+            # Convert to Tensor, move to GPU, double precision, transpose, compute Pseudo-Inverse
+            s_tensor = torch.tensor(np.vstack(stereodim_base_change_list), device=self._device, dtype=torch.float64)
+            stereodim_base_change_inv[layer] = torch.linalg.pinv(s_tensor.T)
 
-            warmth_competence_base_change: list[np.ndarray] = []
+            warmth_competence_base_change_list: list[np.ndarray] = []
 
             for dim in WARMTH_COMPETENCE_DIMENSIONS:
-                low_embeddings = np.load(
-                    self._embeddings_dir / f"{self._model_name_no_primer}-L{layer}/{dim}-low_embeddings.npy"
-                )
-                high_embeddings = np.load(
-                    self._embeddings_dir / f"{self._model_name_no_primer}-L{layer}/{dim}-high_embeddings.npy"
-                )
+                base_path = self._embeddings_dir / f"{self._model_name_no_primer}-L{layer}"
+                low_embeddings = np.load(base_path / f"{dim}-low_embeddings.npy")
+                high_embeddings = np.load(base_path / f"{dim}-high_embeddings.npy")
 
                 low_mean = np.average(low_embeddings, axis=0)
                 high_mean = np.average(high_embeddings, axis=0)
-                warmth_competence_base_change.append(high_mean - low_mean)
+                warmth_competence_base_change_list.append(high_mean - low_mean)
 
-            with open(
-                self._embeddings_dir / f"{self._model_name_no_primer}-L{layer}/warmth_competence_base_change.npy", "wb"
-            ) as f:
-                np.save(f, warmth_competence_base_change)
+            with open(base_path / "warmth_competence_base_change.npy", "wb") as f:
+                np.save(f, warmth_competence_base_change_list)
 
-            warmth_competence_base_change_inv[layer] = linalg.pinv(
-                np.transpose(np.vstack(warmth_competence_base_change))
+            wc_tensor = torch.tensor(
+                np.vstack(warmth_competence_base_change_list), device=self._device, dtype=torch.float64
             )
+            warmth_competence_base_change_inv[layer] = torch.linalg.pinv(wc_tensor.T)
 
         return warmth_competence_base_change_inv, stereodim_base_change_inv
 
     def project(
-        self, warmth_competence_base_change_inv: dict[int, np.ndarray], stereodim_base_change_inv: dict[int, np.ndarray]
+        self,
+        warmth_competence_base_change_inv: dict[int, torch.Tensor],
+        stereodim_base_change_inv: dict[int, torch.Tensor],
     ) -> None:
         """Project population terms into stereotype dimension spaces.
 
@@ -368,59 +362,14 @@ class GeobiasPipeline:
                 for layer in self._layers:
                     sense_embedding = layerwise_sense_embeddings[layer].double()
 
-                    warmth_comp = torch.matmul(
-                        torch.from_numpy(warmth_competence_base_change_inv[layer]).double(), sense_embedding
-                    ).numpy()
-                    stereodim = torch.matmul(
-                        torch.from_numpy(stereodim_base_change_inv[layer]).double(), sense_embedding
-                    ).numpy()
-                    self._result_dict[f"{self._model_name}-L{layer}"][term] = np.concatenate((warmth_comp, stereodim))
+                    wc_inv = warmth_competence_base_change_inv[layer].to(sense_embedding.device)
+                    sd_inv = stereodim_base_change_inv[layer].to(sense_embedding.device)
 
-    def project_batched(
-        self, warmth_competence_base_change_inv: dict[int, np.ndarray], stereodim_base_change_inv: dict[int, np.ndarray]
-    ) -> None:
-        """Project population terms into stereotype dimension spaces using batched processing.
+                    warmth_comp = torch.matmul(wc_inv, sense_embedding)
+                    stereodim = torch.matmul(sd_inv, sense_embedding)
 
-        This is a batched version of project that processes all templates for each
-        term in a single forward pass, which is much faster on GPU.
-
-        Parameters
-        ----------
-        warmth_competence_base_change_inv : dict[int, np.ndarray]
-            Pseudo-inverse matrices for warmth/competence projections by layer.
-        stereodim_base_change_inv : dict[int, np.ndarray]
-            Pseudo-inverse matrices for stereotype dimension projections by layer.
-
-        Produces identical results to project but with better GPU utilization.
-        """
-        for group, terms in self._populations.items():
-            for term in tqdm(
-                terms, desc=f"Projecting {group} to stereotype dimensions (batched)", position=0, leave=True
-            ):
-                is_proper_noun = nltk.pos_tag([term])[0][1] == "NNP" or "names" in group.lower()
-                contexts = [fill_template(term, template, isNNP=is_proper_noun) for template in TEMPLATES]
-
-                # Use batched function to process all templates at once
-                layerwise_sense_embeddings = get_word_embeddings_by_layer_batched(
-                    self._tokenizer, self._embedding_model, contexts, self._primer_text, term, self._layers
-                )
-
-                for layer in self._layers:
-                    sense_embedding = layerwise_sense_embeddings[layer].double()
-
-                    # Keep computations on GPU, convert to numpy only at the end
-                    warmth_comp_tensor = torch.matmul(
-                        torch.from_numpy(warmth_competence_base_change_inv[layer]).double().to(sense_embedding.device),
-                        sense_embedding,
-                    )
-                    stereodim_tensor = torch.matmul(
-                        torch.from_numpy(stereodim_base_change_inv[layer]).double().to(sense_embedding.device),
-                        sense_embedding,
-                    )
-                    # Convert to numpy once, concatenate
-                    warmth_comp = warmth_comp_tensor.cpu().numpy()
-                    stereodim = stereodim_tensor.cpu().numpy()
-                    self._result_dict[f"{self._model_name}-L{layer}"][term] = np.concatenate((warmth_comp, stereodim))
+                    result = torch.cat((warmth_comp, stereodim)).cpu().numpy()
+                    self._result_dict[f"{self._model_name}-L{layer}"][term] = result
 
     def gather_results(self) -> None:
         """Aggregate layer-wise projections, compute statistics, and save results.
@@ -471,31 +420,19 @@ class GeobiasPipeline:
 
     def __call__(self) -> None:
         """Execute the complete pipeline: compute, save, project, and gather results."""
-        # Only calculate context embeddings once
-        if not self._primer_text:
-            self.compute_embeddings()
-            self.save_embeddings()
+        try:
+            # Only calculate context embeddings once
+            if not self._primer_text:
+                self.compute_embeddings_batched()
+                self.save_embeddings()
 
-        warmth_comp_inv, stereodim_inv = self.compute_base_change()
-        self.project(warmth_comp_inv, stereodim_inv)
-        self.gather_results()
-
-        del self._tokenizer
-        del self._embedding_model
-
-    def run_batched(self) -> None:
-        """Execute the complete pipeline using batched processing for faster GPU utilization.
-
-        This method uses batched versions of compute_embeddings and project,
-        which process multiple contexts in a single forward pass.
-        """
-        if not self._primer_text:
-            self.compute_embeddings_batched()
-            self.save_embeddings()
-
-        warmth_comp_inv, stereodim_inv = self.compute_base_change()
-        self.project_batched(warmth_comp_inv, stereodim_inv)
-        self.gather_results()
-
-        del self._tokenizer
-        del self._embedding_model
+            warmth_comp_inv, stereodim_inv = self.compute_base_change()
+            self.project(warmth_comp_inv, stereodim_inv)
+            self.gather_results()
+        finally:
+            if hasattr(self, "_embedding_model"):
+                del self._embedding_model
+            if hasattr(self, "_tokenizer"):
+                del self._tokenizer
+            gc.collect()
+            torch.cuda.empty_cache()

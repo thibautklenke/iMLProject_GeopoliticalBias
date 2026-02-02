@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import hydra
 import matplotlib.pyplot as plt
@@ -122,10 +122,11 @@ class TSNEPipeline:
         self._inv_base_change = linalg.pinv(np.transpose(self._base_change))
 
         # Embedding result
-        self._result_embedding_default = {}
-        self._result_embedding_primer = {}
-        self._result_default = []
-        self._result_primer = []
+        self._result_embedding_default: dict[str, np.ndarray] = {}
+        self._result_embedding_primer: dict[str, np.ndarray] = {}
+        self._result_default: list[Any] = []
+        self._result_primer: list[Any] = []
+        self._result_embedding: dict[str, Any] = {}
 
     def compute_embeddings(self) -> None:
         """Compute group-wise word embeddings and store results.
@@ -214,7 +215,7 @@ class TSNEPipeline:
 
         return linalg.norm(a_stereo - b_stereo)
 
-    def compute_tsne(self, embeddings: dict) -> list:
+    def compute_tsne(self, embeddings: dict) -> list[Any]:
         """Compute t-SNE projections for the stored embeddings."""
         # TSNE
         tsne = TSNE(n_components=self._dim, metric=self.stereodim_metric, random_state=0)
@@ -246,15 +247,11 @@ class TSNEPipeline:
 
         ax[0].set_title("No Primer", y=-0.15)
         for group_idx, group_emb in enumerate(self._result_default):
-            sns.scatterplot(x=group_emb[:, 0], y=group_emb[:, 1],
-                ax=ax[0], label=poplist[group_idx], legend=False
-            )
+            sns.scatterplot(x=group_emb[:, 0], y=group_emb[:, 1], ax=ax[0], label=poplist[group_idx], legend=False)
 
         ax[1].set_title(f"{self._primer_name.capitalize()} Primer", y=-0.15)
         for group_idx, group_emb in enumerate(self._result_primer):
-            sns.scatterplot(x=group_emb[:, 0], y=group_emb[:, 1],
-                ax=ax[1], label=poplist[group_idx], legend=False
-            )
+            sns.scatterplot(x=group_emb[:, 0], y=group_emb[:, 1], ax=ax[1], label=poplist[group_idx], legend=False)
 
         handles, labels = ax[0].get_legend_handles_labels()
         fig.legend(handles, labels)

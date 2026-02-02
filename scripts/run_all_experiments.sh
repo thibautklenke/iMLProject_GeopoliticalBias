@@ -6,26 +6,20 @@ MODELS=(
     "+model=qwen_medium"
 )
 
-ASPECTS=(
-    "+primer/conservative=primer_"
-    "+primer/democratic=primer_"
-    "+primer/liberal=primer_"
+PRIMER=(
+    "+primer/conservative=glob(primer_*)"
+    "+primer/democratic=glob(primer_*)"
+    "+primer/liberal=glob(primer_*)"
 )
 
 for model in "${MODELS[@]}"; do
 
     # Default
-    echo -e "\033[31mNOW RUNNING:\033[0m python -m geobias.geobias $model"
     python -m geobias.geobias $model
 
-    for aspect in "${ASPECTS[@]}"; do
+    for primer in "${PRIMER[@]}"; do
 
-        for primer in {1..10}; do # CUDA does not like sweeping :C
-
-            echo -e "\033[31mNOW RUNNING:\033[0m python -m geobias.geobias $model $aspect$primer"
-            python -m geobias.geobias $model $aspect$primer
-
-        done
+        python -m geobias.geobias $model $primer -m
 
     done
 
