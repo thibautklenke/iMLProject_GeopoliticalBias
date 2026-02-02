@@ -57,7 +57,13 @@ def load_model_for_embedding_retrieval(
     tuple[PreTrainedTokenizer, PreTrainedModel]
         Tuple of (tokenizer, model) ready for inference.
     """
-    tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True, token=hf_token)
+    tokenizer_kwargs: dict[str, Any] = {
+        "use_fast": True,
+    }
+    if hf_token:
+        tokenizer_kwargs["token"] = hf_token
+
+    tokenizer = AutoTokenizer.from_pretrained(model_name, **tokenizer_kwargs)
 
     # Set padding token if not already set (needed for batched processing)
     # Use eos_token or unk_token as pad_token to avoid needing to resize model embeddings
@@ -70,13 +76,18 @@ def load_model_for_embedding_retrieval(
             # Last resort: use the last token in vocab (should exist)
             tokenizer.pad_token = tokenizer.convert_ids_to_tokens(len(tokenizer) - 1)
 
+    model_kwargs: dict[str, Any] = {
+        "device_map": "auto",
+        "output_hidden_states": True,
+    }
+    if hf_token:
+        model_kwargs["token"] = hf_token
+
     try:
-        embedding_model = AutoModel.from_pretrained(
-            model_name, output_hidden_states=True, device_map="auto", token=hf_token
-        )
+        embedding_model = AutoModel.from_pretrained(model_name, **model_kwargs)
     except ValueError:
         # Fallback for models where device_map is not supported (typically smaller, older models)
-        embedding_model = AutoModel.from_pretrained(model_name, output_hidden_states=True, token=hf_token).to(device)
+        embedding_model = AutoModel.from_pretrained(model_name, **model_kwargs).to(device)
 
     embedding_model.eval()
     return tokenizer, embedding_model
