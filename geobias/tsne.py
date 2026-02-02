@@ -107,18 +107,17 @@ class TSNEPipeline:
                 self._model_name, self._device, hf_token=self._hf_token
             )
 
-            self._layers = len(list(range(get_number_of_hidden_states(self._tokenizer, self._embedding_model)))) - 1
+            self._layers = list(range(get_number_of_hidden_states(self._tokenizer, self._embedding_model)))
         else:
             # Figure out layer count from folder structure
-            layer_indices = [ int(entry.name.removeprefix(f"{self._model_name_no_primer}-L"))
+            self._layers = [ int(entry.name.removeprefix(f"{self._model_name_no_primer}-L"))
                 for entry in self._embeddings_dir.iterdir()
                 if entry.name.startswith(f"{self._model_name_no_primer}-L")
             ]
-            self._layers = max(layer_indices)
 
         # Load base change matrix and compute inverse
         self._base_change = np.load(
-            self._embeddings_dir / f"{self._model_name_no_primer}-L{self._layers}/stereodim_base_change.npy"
+            self._embeddings_dir / f"{self._model_name_no_primer}-L{len(self._layers) - 1}/stereodim_base_change.npy"
         )
         self._inv_base_change = linalg.pinv(np.transpose(self._base_change))
 
